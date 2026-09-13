@@ -129,7 +129,7 @@ class LandingPage extends HTMLElement {
             <span class="hero-tick" aria-hidden="true"></span>
             <div class="hero-rule" aria-hidden="true"><span class="plus">+</span></div>
             <h1>AI that makes your<br>site faster. Automatically.</h1>
-            <p class="lede">Makefaster.dev is an AI skill that runs an autoresearch loop to continuously discover, test, and implement performance improvements. It learns what works for your site&mdash;and keeps making it faster.</p>
+            <p class="lede">Makefaster.dev is an AI skill that runs an autoresearch loop to continuously discover, test, and implement performance improvements. It uses learnings from 200 Fable max thinking runs performed on the top 200 starred github repos with frontends.</p>
           </section>
 
           <loop-demo></loop-demo>

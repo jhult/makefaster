@@ -278,7 +278,7 @@ site-header { display: block; }
 
 .lede {
   margin: 34px 0 0;
-  max-width: 560px;
+  width: 100%;
   font-size: 16.5px;
   line-height: 1.68;
   color: #3d4a58;
