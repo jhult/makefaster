@@ -90,7 +90,8 @@ landing-page,
 site-leaderboard-page,
 improvement-leaderboard-page,
 geo-row,
-spec-footer {
+spec-footer,
+loop-demo {
   display: block;
 }
 
@@ -281,6 +282,82 @@ site-header { display: block; }
   font-size: 16.5px;
   line-height: 1.68;
   color: #3d4a58;
+}
+
+/* loop recording ------------------------------------------------------- */
+
+loop-demo { padding: 36px 56px 0; }
+
+.loop-window {
+  overflow: hidden;
+  border-radius: 10px;
+  background: #121212;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.42),
+    0 18px 48px rgba(18, 32, 48, 0.28);
+}
+
+.loop-window-titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 14px;
+  background: #1c1c1c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.loop-window-lights {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+}
+
+.loop-window-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.28);
+}
+.loop-window-light--close { background: #ff5f57; }
+.loop-window-light--min { background: #febc2e; }
+.loop-window-light--zoom { background: #28c840; }
+
+.loop-window-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.58);
+  pointer-events: none;
+}
+
+.loop-demo-player {
+  width: 100%;
+  background: #121212;
+  overflow: hidden;
+}
+
+/* The vendor player brings its own radius and font; keep it flush with the
+   window chrome and on the same mono as the rest of the page. */
+.loop-demo-player .ap-player {
+  border-radius: 0;
+  max-width: 100%;
+  background-color: #121212;
+}
+.loop-demo-player .ap-wrapper {
+  height: auto;
+}
+
+/* After the fastest run the recording holds; do not cover that frame with
+   the player's start/replay overlay. */
+.loop-demo-player.is-held .ap-overlay {
+  display: none;
 }
 
 /* command block ---------------------------------------------------------- */
@@ -937,6 +1014,7 @@ site-header { display: block; }
   .masthead-main { flex-wrap: wrap; padding: 14px 16px; gap: 14px; }
   .site-nav { gap: 20px; flex-wrap: wrap; }
   .hero { padding: 26px 6px 0; }
+  loop-demo { padding: 28px 0 0; }
   .cmd-wrap { padding: 34px 0 0; }
   .cmd { gap: 14px; padding: 20px 18px; }
   .stat-cards { grid-template-columns: 1fr 1fr; }

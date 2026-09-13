@@ -1,6 +1,7 @@
 /**
- * The landing page: hero, the copyable `npx makefaster` command, the
- * average-improvement band, and the four-step loop diagram.
+ * The landing page: hero, a playback of a real loop through to the fastest
+ * run, the copyable `npx makefaster` command, the average-improvement band,
+ * and the four-step loop diagram.
  *
  * Light DOM so css/style.css keeps applying. The markup is a template string
  * because almost all of it is static; the two behaviours are the copy button
@@ -10,6 +11,7 @@
 import "./site-header.js";
 import "./geo-row.js";
 import "./spec-footer.js";
+import "./loop-demo.js";
 import { getSites } from "./api.js";
 import { afterBarHeight, formatDeltaPct, summarizeSites } from "./site-stats.js";
 
@@ -129,6 +131,8 @@ class LandingPage extends HTMLElement {
             <h1>AI that makes your<br>site faster. Automatically.</h1>
             <p class="lede">Makefaster.dev is an AI skill that runs an autoresearch loop to continuously discover, test, and implement performance improvements. It learns what works for your site&mdash;and keeps making it faster.</p>
           </section>
+
+          <loop-demo></loop-demo>
 
           <section class="cmd-wrap">
             <div class="cmd-shell">
