@@ -45,7 +45,13 @@ function writeFake(dir, name, body) {
 const FAKE_ACP = `
 const { createInterface } = require("node:readline");
 const fs = require("node:fs");
-const report = { argv: process.argv.slice(2), stdinIsTty: Boolean(process.stdin.isTTY), frames: [] };
+const report = {
+  argv: process.argv.slice(2),
+  stdinIsTty: Boolean(process.stdin.isTTY),
+  measurementUrl: process.env.MAKEFASTER_MEASUREMENT_URL || null,
+  measurementToken: process.env.MAKEFASTER_MEASUREMENT_TOKEN || null,
+  frames: [],
+};
 const flush = () => fs.writeFileSync(process.env.FAKE_REPORT, JSON.stringify(report));
 const send = (m) => process.stdout.write(JSON.stringify(m) + "\\n");
 const pending = new Map();
@@ -371,6 +377,8 @@ test("runAgent routes each provider to its protocol runner", SKIP, async () => {
   assert.equal(result.exitCode, 0);
   assert.equal(result.authRequired, false);
   assert.deepEqual(fake.read().argv, ["--model", "gpt-5.6-sol-medium", "acp"]);
+  assert.match(fake.read().measurementUrl, /^http:\/\/127\.0\.0\.1:\d+\/lighthouse$/);
+  assert.match(fake.read().measurementToken, /^[a-f0-9]{64}$/);
 
   await assert.rejects(
     runAgent({ provider: { key: "gemini", displayName: "Gemini", executablePath: "gemini" }, prompt: "x", cwd: fake.dir, reporter: log.reporter }),

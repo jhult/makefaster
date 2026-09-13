@@ -18,8 +18,8 @@
  *
  * Credentials are reused, never created or supplied:
  *
- * - No `login` subcommand is ever run, no browser is opened, no device code is
- *   printed.
+ * - No `login` subcommand is ever run, no login browser is opened, and no
+ *   device code is printed.
  * - No API key is injected. ANTHROPIC_API_KEY, CURSOR_API_KEY and
  *   OPENAI_API_KEY are never set by makefaster — an injected key fights the
  *   OAuth credentials the CLI already stored and can itself cause prompts. The

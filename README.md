@@ -41,7 +41,7 @@ What happens:
 3. **Asks you to pick a model** — five per provider, ranked by intelligence
    (see [Model picker](#model-picker)). `--model <id>` skips the picker.
 4. **Reuses the sign-in you already have.** makefaster never runs a `login`,
-   opens a browser, prints a device code, or injects an API key; a signed-out
+   opens a login browser, prints a device code, or injects an API key; a signed-out
    install fails with the CLI's own auth error and makefaster reports it in one
    line pointing at the native `login` command.
 5. **Imports the improvement checklist** — up to the top 50 categories from the
@@ -56,7 +56,9 @@ What happens:
    then walk the whole imported checklist in rank order — one category per
    iteration, skipping only what plainly does not apply — and finish with up to
    five hypotheses of the agent's own. Measure each one, keep it if it beats the
-   noise floor, revert otherwise. The other product's interface never draws and never
+   noise floor, revert otherwise. Lighthouse runs through a loopback broker in
+   the outer makefaster process, so Chrome does not inherit the coding agent's
+   filesystem sandbox. The other product's interface never draws and never
    prompts you (see [The native CLI stays hidden](#the-native-cli-stays-hidden));
    makefaster shows [its own dashboard](#the-dashboard) instead.
 7. **Stops when the whole checklist has been walked and the extras are done** —
@@ -208,15 +210,25 @@ and Codex's `--full-auto` was removed from the CLI, which is part of why the
 app-server — where the posture is `approvalPolicy: "never"` with a
 `workspaceWrite` sandbox — is the path rather than `codex exec`.
 
+Browser measurement is deliberately outside that child sandbox without
+unsandboxing the agent. Each round starts an authenticated loopback broker in
+the outer makefaster process and injects only its random endpoint and token into
+the agent environment. The copied `.makefaster/measure.mjs` client may submit
+one HTTP(S) URL; the broker owns the fixed Lighthouse and isolated-Chrome flags,
+serializes runs, and returns stdout/stderr. It does not accept shell commands or
+Lighthouse flags from the agent.
+
 ### Credentials are reused, never supplied
 
-makefaster never runs a `login` subcommand, never opens a browser, and never
-prints a device code. It also **never injects an API key**: `ANTHROPIC_API_KEY`,
+makefaster never runs a `login` subcommand, never opens a login browser, and
+never prints a device code. It also **never injects an API key**: `ANTHROPIC_API_KEY`,
 `CURSOR_API_KEY` and `OPENAI_API_KEY` are not set by makefaster, because an
 injected key fights the OAuth credentials the CLI already stored and can itself
-cause prompts. The child inherits your environment untouched and finds
-`~/.claude`, `~/.cursor` and `CODEX_HOME`/`~/.codex` exactly as the native CLI
-does. A key *you* set stays yours; makefaster only refuses to add one.
+cause prompts. The child inherits your credential environment untouched and
+finds `~/.claude`, `~/.cursor` and `CODEX_HOME`/`~/.codex` exactly as the native
+CLI does. The only additions are the random, round-scoped measurement-broker
+endpoint and token. A key *you* set stays yours; makefaster only refuses to add
+one.
 
 A signed-out install therefore fails with an auth-required error from the child
 (or from the model-list probe, which needs the same account). That is the

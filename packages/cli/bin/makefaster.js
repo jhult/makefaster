@@ -225,7 +225,7 @@ async function main() {
   console.log(`  ${OK} using ${bold(provider.displayName)} ${dim(provider.executablePath)}\n`);
 
   // 2. Pick the model. makefaster reuses the credentials the CLI already stored
-  //    and never starts a login, opens a browser, or injects an API key — so a
+  //    and never starts a login, opens a login browser, or injects an API key — so a
   //    signed-out install is reported here and the run stops.
   const model = await pickModel(provider, args.model, cwd);
   if (model) console.log(`  ${OK} model ${bold(model.label)} ${dim(model.id)}\n`);

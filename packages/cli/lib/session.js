@@ -11,10 +11,12 @@ import { runAcpSession } from "./agents/acp.js";
 import { runClaudeSession } from "./agents/claudeCode.js";
 import { runCodexSession } from "./agents/codexAppServer.js";
 import { createProgressReporter } from "./progress.js";
+import { startMeasurementBroker } from "./measurementBroker.js";
 import { openThinkingTrace, resetThinkingTrace, withThinkingTrace } from "./thinkingTrace.js";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const SKILL_SOURCE = join(PACKAGE_ROOT, "packages", "skill", "SKILL.md");
+const MEASURE_SOURCE = join(PACKAGE_ROOT, "packages", "cli", "data", "measure.mjs");
 
 export const SESSION_DIR_NAME = ".makefaster";
 
@@ -26,6 +28,7 @@ export function sessionPaths(cwd) {
     improvements: join(dir, "improvements.json"),
     state: join(dir, "state.json"),
     results: join(dir, "results.json"),
+    measure: join(dir, "measure.mjs"),
     steps: join(dir, "thinking.log"),
     // The hidden agent's own reasoning, captured from the protocol stream so
     // the end screen can offer to submit it. Nothing reads it during the run
@@ -68,6 +71,7 @@ export function prepareSession({ cwd, provider, model, checklist, checklistSourc
   const paths = sessionPaths(cwd);
   mkdirSync(paths.dir, { recursive: true });
   copyFileSync(SKILL_SOURCE, paths.skill);
+  copyFileSync(MEASURE_SOURCE, paths.measure);
   writeFileSync(paths.improvements, JSON.stringify({ source: checklistSource, categories: checklist }, null, 2) + "\n");
   // A fresh session starts on an empty panel rather than replaying the last
   // run's steps, and on an empty trace rather than the last run's reasoning.
@@ -193,7 +197,7 @@ export function continuePrompt(plan) {
  * — which terminates the child rather than orphaning it.
  *
  * `authRequired` means the install is signed out. makefaster never fixes that
- * itself: no login, no browser, no injected API key.
+ * itself: no login browser and no injected API key.
  *
  * Every provider's reasoning is captured to `.makefaster/thinking-trace.jsonl`
  * on the way past — a local file under a directory the session already keeps
@@ -205,8 +209,6 @@ export function continuePrompt(plan) {
  */
 export async function runAgent({ provider, prompt, cwd, model = null, env = process.env, reporter, signal }) {
   const progress = reporter ?? createProgressReporter();
-  const trace = openThinkingTrace({ path: sessionPaths(cwd).trace });
-  const tracing = withThinkingTrace(progress, trace);
   const runners = {
     cursor: runAcpSession,
     claude: runClaudeSession,
@@ -215,8 +217,17 @@ export async function runAgent({ provider, prompt, cwd, model = null, env = proc
   const runner = runners[provider.key];
   if (!runner) throw new Error(`no protocol runner is defined for provider "${provider.key}"`);
 
+  // The broker belongs to this outer process, so Chrome never inherits an
+  // agent CLI's workspace sandbox. Only its random loopback endpoint and token
+  // enter the child environment; the broker accepts URLs, not shell commands.
+  const broker = await startMeasurementBroker({ cwd, env });
+  const childEnvironment = { ...env, ...broker.env };
+  let trace = null;
+
   try {
-    const result = await runner({ provider, prompt, cwd, model, env, reporter: tracing, signal });
+    trace = openThinkingTrace({ path: sessionPaths(cwd).trace });
+    const tracing = withThinkingTrace(progress, trace);
+    const result = await runner({ provider, prompt, cwd, model, env: childEnvironment, reporter: tracing, signal });
     return {
       ...result,
       eventCount: progress.eventCount,
@@ -225,6 +236,10 @@ export async function runAgent({ provider, prompt, cwd, model = null, env = proc
       detail: result.detail ?? null,
     };
   } finally {
-    trace.close();
+    try {
+      trace?.close();
+    } finally {
+      await broker.close();
+    }
   }
 }

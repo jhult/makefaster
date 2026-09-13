@@ -15,27 +15,30 @@ const SKILL_PATH = join(
   "packages", "skill", "SKILL.md",
 );
 const SKILL = readFileSync(SKILL_PATH, "utf8");
+const BROKER = readFileSync(join(resolve(dirname(fileURLToPath(import.meta.url)), ".."), "lib", "measurementBroker.js"), "utf8");
 
-test("the Lighthouse launch site pins a dedicated headless Chrome with an isolated profile", () => {
-  const chromeFlags = [...SKILL.matchAll(/--chrome-flags="([^"]+)"/g)].map((m) => m[1]);
-  assert.ok(chromeFlags.length > 0, "the skill must spell out the Lighthouse chrome-flags");
-  for (const flags of chromeFlags) {
-    assert.ok(flags.includes("--headless=new"), `headless is mandatory, got: ${flags}`);
-    assert.match(flags, /--user-data-dir=\S*\.makefaster\//, `an isolated profile dir is mandatory, got: ${flags}`);
-    assert.ok(flags.includes("--no-first-run"), `--no-first-run is mandatory, got: ${flags}`);
-    assert.ok(flags.includes("--no-default-browser-check"), `--no-default-browser-check is mandatory, got: ${flags}`);
+test("the skill sends Lighthouse through the outer measurement broker", () => {
+  assert.match(SKILL, /node \.makefaster\/measure\.mjs <url> > <report\.json>/);
+  assert.match(SKILL, /outside the coding\s+agent's sandbox/);
+  assert.match(SKILL, /Never replace\s+this command with `npx lighthouse`, Playwright, Puppeteer, a raw Chrome/);
+});
+
+test("the broker pins a dedicated headless Chrome with an isolated profile", () => {
+  for (const flag of ["--headless=new", "--user-data-dir=./.makefaster/chrome-profile", "--no-first-run", "--no-default-browser-check"]) {
+    assert.match(BROKER, new RegExp(flag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${flag} must be broker-owned`);
   }
+  assert.match(BROKER, /shell: false/, "Lighthouse arguments must never pass through a shell");
 });
 
 test("the skill never reuses an existing Chrome debugging port or the user's profile", () => {
   // No example anywhere in the document may attach to an already-running
   // Chrome — that is exactly how measurement tabs end up in the user's browser.
   assert.doesNotMatch(SKILL, /lighthouse[^\n]*--port=\d/, "no Lighthouse example may attach by port");
-  assert.match(SKILL, /[Nn]ever pass `--port`/, "the port-reuse ban must be explicit");
+  assert.match(SKILL, /[Nn]ever bypass the managed client or pass `--port`/, "the port-reuse ban must be explicit");
   assert.match(
     SKILL,
-    /never `connect` or\s+`connectOverCDP` to a browser you did not start/,
-    "the Playwright/Puppeteer path must launch its own browser, not connect to the user's",
+    /Never replace\s+this command with[^]*`connect`, or `connectOverCDP`/,
+    "the agent must not bypass the managed browser path",
   );
   assert.match(
     SKILL,
@@ -47,7 +50,7 @@ test("the skill never reuses an existing Chrome debugging port or the user's pro
 test("CHROME_PATH still means our own headless launch with our own profile", () => {
   assert.match(
     SKILL,
-    /`CHROME_PATH`[^]*?still launch it headless with\s+the isolated `--user-data-dir`/,
+    /`CHROME_PATH`[^]*?still launches it headless with the\s+isolated `--user-data-dir`/,
     "CHROME_PATH picks the binary; it must never mean reusing the user's session",
   );
 });

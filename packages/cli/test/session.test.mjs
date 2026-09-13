@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { continuePrompt, kickoffPrompt, prepareSession, runPlan, sessionPaths } from "../lib/session.js";
@@ -53,6 +53,8 @@ test("prepareSession writes the plan into state.json and carries no miss limit",
   // The checklist the agent reads is the one the plan was counted from.
   const imported = JSON.parse(readFileSync(sessionPaths(cwd).improvements, "utf8"));
   assert.equal(imported.categories.length, 24);
+  assert.equal(existsSync(sessionPaths(cwd).measure), true, "the sandbox-safe measurement client is copied into the session");
+  assert.match(readFileSync(sessionPaths(cwd).measure, "utf8"), /MAKEFASTER_MEASUREMENT_URL/);
 });
 
 // The prompt is where the model learns the size of the job. A model told "29

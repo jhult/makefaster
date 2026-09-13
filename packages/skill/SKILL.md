@@ -98,23 +98,24 @@ the production build, not the dev server — dev servers lie about performance.
 Use the heaviest-hitting **real, user-felt** metric you can actually measure
 on this machine, preferring:
 
-1. **Lighthouse** if available or installable
-   — gives FCP / LCP / TBT / TTI / Speed Index in one run. Launch it exactly
-   like this, every run:
+1. **Managed Lighthouse** — gives FCP / LCP / TBT / TTI / Speed Index in one
+   run. Launch it exactly like this, every run, choosing a distinct report file
+   for each cold or warm sample:
 
    ```sh
-   npx lighthouse <url> --output=json --quiet \
-     --chrome-flags="--headless=new --user-data-dir=./.makefaster/chrome-profile --no-first-run --no-default-browser-check"
+   node .makefaster/measure.mjs <url> > <report.json>
    ```
 
-2. Headless Chromium via **Playwright/Puppeteer** if the repo already has one
-   — read `PerformanceNavigationTiming`, `largest-contentful-paint` entries,
-   and long tasks yourself. Launch the bundled headless browser
-   (`chromium.launch()` / `puppeteer.launch()`); never `connect` or
-   `connectOverCDP` to a browser you did not start.
-3. Last resort: **curl-level timings** (TTFB, full transfer time, total bytes
+   The client sends only the URL to makefaster's outer loopback broker. The
+   broker launches Lighthouse and its dedicated Chrome outside the coding
+   agent's sandbox, then streams the JSON report back to stdout. Never replace
+   this command with `npx lighthouse`, Playwright, Puppeteer, a raw Chrome
+   launch, `connect`, or `connectOverCDP`: on macOS an agent-sandboxed Chrome
+   cannot register with LaunchServices and aborts before measurement begins.
+2. Last resort: **curl-level timings** (TTFB, full transfer time, total bytes
    of the entry page + critical assets). Weak, but honest — record that this
-   is what you measured.
+   is what you measured. Use this only if the managed Lighthouse command itself
+   reports that Lighthouse cannot be installed or run.
 
 ### The measurement browser is never the user's browser
 
@@ -123,20 +124,21 @@ must never attach to the user's everyday Chrome: no new tabs in their windows,
 no shared profile, no attaching to their session. On every Lighthouse or
 DevTools-protocol run, cold and warm alike, baseline and re-measure alike:
 
-- Launch a **dedicated headless Chrome** (`--headless=new`) that this loop
-  starts and stops itself. That is what the `--chrome-flags` above guarantee;
-  they are a hard requirement, not a suggestion.
+- The managed broker launches a **dedicated headless Chrome** (`--headless=new`)
+  that this loop starts and stops itself. Its fixed flags are a hard
+  requirement, not a suggestion.
 - Give it an **isolated profile**: `--user-data-dir=./.makefaster/chrome-profile`
   (under the session dir, already kept out of git; created on first launch).
   Never launch against the user's default profile directory — a Chrome started
   without its own `--user-data-dir` while the user's Chrome is running just
   opens a tab in *their* browser.
-- Never pass `--port` to reuse an existing Chrome debugging port (9222 or any
-  other) unless that port belongs to a Chrome this loop launched itself. A
-  running debuggable Chrome you did not start is the user's; leave it alone.
-- If `CHROME_PATH` is set, use that binary — but still launch it headless with
-  the isolated `--user-data-dir` above. `CHROME_PATH` picks the executable,
-  never an existing browser session.
+- Never bypass the managed client or pass `--port` to reuse an existing Chrome
+  debugging port (9222 or any other). A running debuggable Chrome you did not
+  start is the user's; leave it alone.
+- If `CHROME_PATH` is set in the environment that started makefaster, the outer
+  broker passes it to Lighthouse — but still launches it headless with the
+  isolated `--user-data-dir` above. `CHROME_PATH` picks the executable, never
+  an existing browser session.
 
 Rules:
 
