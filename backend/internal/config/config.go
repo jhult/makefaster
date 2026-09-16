@@ -37,12 +37,11 @@ const (
 )
 
 // Inference configures the subsidized model proxy that the CLI's `makefaster`
-// provider used to run on: this server holds the OpenRouter credential and
+// provider runs on: this server holds the OpenRouter credential and
 // forwards chat completions on a client's behalf.
 //
-// APIKey empty is a supported state, not a misconfiguration, and it is the
-// expected one now that the provider is gone and nothing in this repo calls the
-// endpoint: the proxy answers 503 with an explanation.
+// APIKey empty is a supported state, not a misconfiguration: the proxy answers
+// 503 with an explanation, and the rest of the box is unaffected.
 type Inference struct {
 	APIKey  string
 	BaseURL string

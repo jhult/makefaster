@@ -1,12 +1,7 @@
-// Package inference is the subsidized model proxy that used to sit behind the
-// `makefaster` provider in the CLI: the server held one OpenRouter credential,
-// the CLI held nothing, and chat completions were forwarded on its behalf so
-// that somebody with none of the agent CLIs installed could still run the loop.
-//
-// That provider is gone — the CLI drives only the agent CLIs a user already
-// installed and signed into, where the model is theirs and so is the bill — so
-// nothing in this repo calls this endpoint any more. It is still served, and a
-// deployment that leaves OPENROUTER_API_KEY unset never turns it on.
+// Package inference is the subsidized model proxy behind the `makefaster`
+// provider in the CLI: the server holds one OpenRouter credential, the CLI holds
+// nothing, and chat completions are forwarded on its behalf so that somebody
+// with none of the agent CLIs installed can still run the loop.
 //
 // It remains the one endpoint on the box that spends money on request, so the
 // rules stay deliberately narrow:
@@ -39,15 +34,15 @@ import (
 )
 
 // DefaultModel is what a request that names no model gets.
-const DefaultModel = "stealth/ox-alpha"
+const DefaultModel = "stealth/union-alpha"
 
 // AllowedModels is every model this proxy will ask for. Adding one here is a
 // decision about what the credential may be spent on, so the list is
 // deliberately short and deliberately explicit — an empty `model` means
-// DefaultModel, and anything else is refused.
+// DefaultModel, and anything else is refused. Union Alpha is the free hosted
+// option, and currently the only id on the list.
 var AllowedModels = []string{
-	"stealth/ox-alpha",
-	"z-ai/glm-5.2:free",
+	"stealth/union-alpha",
 }
 
 // ModelAllowed reports whether the proxy will forward a request for this model.
@@ -107,7 +102,7 @@ func (p *Proxy) Available() bool { return p != nil && p.apiKey != "" }
 func (p *Proxy) Model() string { return DefaultModel }
 
 // Models is the allowlist, for anything that wants to offer a choice — the CLI's
-// picker checks its own two ids against this before a run starts.
+// picker checks its own ids against this before a run starts.
 func (p *Proxy) Models() []string { return append([]string(nil), AllowedModels...) }
 
 // InvalidRequestError is a client mistake: the caller sent something this proxy
@@ -244,7 +239,7 @@ func resolveModel(requested any) (string, error) {
 	if !ModelAllowed(name) {
 		return "", &InvalidRequestError{Reason: fmt.Sprintf(
 			"%q is not a model this deployment serves — it offers %s",
-			name, strings.Join(AllowedModels, " and "))}
+			name, strings.Join(AllowedModels, ", "))}
 	}
 	return name, nil
 }

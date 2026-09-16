@@ -84,3 +84,19 @@ test("an empty board is described as extras-only rather than as a 0-run session"
   assert.match(prompt, /checklist came back empty/);
   assert.match(prompt, /up to 5 hypotheses of your own/);
 });
+
+// The hosted provider has no child process, so its turn budget is the only
+// thing on that path that can cut the walk short. It has to scale with the run.
+test("the hosted turn budget scales with the planned run", async () => {
+  const { turnBudget } = await import("../lib/agents/openrouter.js");
+  const small = turnBudget(5);
+  const board = turnBudget(29);
+  const big = turnBudget(55);
+  assert.ok(board > small, `${board} should exceed ${small}`);
+  assert.ok(big > board, `${big} should exceed ${board}`);
+  // Enough turns per iteration to read, edit, build, measure and record.
+  assert.ok(board / 29 >= 20, `only ${Math.round(board / 29)} turns per run`);
+  // And still a ceiling, so a stuck tool cycle cannot bill forever.
+  assert.equal(turnBudget(100000), turnBudget(1000000));
+  assert.ok(turnBudget(null) > 0);
+});

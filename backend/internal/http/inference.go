@@ -9,10 +9,9 @@ import (
 
 // POST /api/openrouter/v1/chat/completions
 //
-// The OpenAI-compatible surface the CLI's `makefaster` provider used to talk
-// to: an ordinary chat-completions client points at `<api-base>/api/openrouter/v1`
-// and sends no credential, because the credential is here. That provider is
-// gone, so nothing in this repo calls it any more.
+// The OpenAI-compatible surface the CLI's `makefaster` provider talks to: an
+// ordinary chat-completions client points at `<api-base>/api/openrouter/v1`
+// and sends no credential, because the credential is here.
 //
 // This is the only endpoint that costs money per request, so it is rate limited
 // on its own budget rather than sharing the write endpoints' allowance, and the

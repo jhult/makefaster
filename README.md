@@ -28,18 +28,20 @@ npx makefaster            # or: npx github:jjcm/makefaster
 
 What happens:
 
-1. **Finds the agent CLIs you already have.** Detected via PATH, well-known
-   install locations (`~/.local/bin`, `~/.claude/local`, `~/.cursor/bin`,
-   Homebrew…) and explicit env overrides (`CURSOR_AGENT_EXECUTABLE`,
-   `CLAUDE_CODE_EXECUTABLE` / `BB_CLAUDE_CODE_EXECUTABLE`, `CODEX_EXECUTABLE`):
-   Cursor Agent (`cursor-agent`/`agent`), Claude Code (`claude`), Codex
-   (`codex`). makefaster never bundles, downloads, or hosts a model — with none
-   of the three installed there is nothing to run the loop with, and it says so
-   with the install commands rather than starting.
-2. **Asks you to pick** — only the CLIs that were actually found, and before
-   anything runs.
-3. **Asks you to pick a model** — five per provider, ranked by intelligence
-   (see [Model picker](#model-picker)). `--model <id>` skips the picker.
+1. **Finds something that can run the loop.** The hosted Makefaster provider is
+   always offered first — Union Alpha through `makefaster.dev`, free, no local
+   CLI and no account of yours. Then the agent CLIs you already have, detected
+   via PATH, well-known install locations (`~/.local/bin`, `~/.claude/local`,
+   `~/.cursor/bin`, Homebrew…) and explicit env overrides
+   (`CURSOR_AGENT_EXECUTABLE`, `CLAUDE_CODE_EXECUTABLE` /
+   `BB_CLAUDE_CODE_EXECUTABLE`, `CODEX_EXECUTABLE`): Cursor Agent
+   (`cursor-agent`/`agent`), Claude Code (`claude`), Codex (`codex`).
+2. **Asks you to pick** — the hosted option plus any CLIs that were actually
+   found, and before anything runs. `--cli makefaster` skips straight to the
+   free hosted model.
+3. **Asks you to pick a model** — for a local CLI, five ranked by intelligence
+   (see [Model picker](#model-picker)); for the hosted provider, Union Alpha
+   (free via `makefaster.dev`). `--model <id>` skips the picker.
 4. **Reuses the sign-in you already have.** makefaster never runs a `login`,
    opens a login browser, prints a device code, or injects an API key; a signed-out
    install fails with the CLI's own auth error and makefaster reports it in one
@@ -81,8 +83,9 @@ What happens:
 
 ```text
 Usage: npx makefaster [dir] [options]
-  --cli <cursor|claude|codex>   Skip the picker and use this agent (it has to
-                                be installed on this machine)
+  --cli <makefaster|cursor|claude|codex>
+                                Skip the picker. "makefaster" is the hosted
+                                default (Union Alpha, free, via makefaster.dev)
   --model <id>                  Skip the model picker
   --url <example.com>           Site URL for the leaderboard submission
   --api <base>                  Leaderboard API base (default https://makefaster.dev)
@@ -224,7 +227,9 @@ makefaster never runs a `login` subcommand, never opens a login browser, and
 never prints a device code. It also **never injects an API key**: `ANTHROPIC_API_KEY`,
 `CURSOR_API_KEY` and `OPENAI_API_KEY` are not set by makefaster, because an
 injected key fights the OAuth credentials the CLI already stored and can itself
-cause prompts. The child inherits your credential environment untouched and
+cause prompts. Nor is `OPENROUTER_API_KEY`: the hosted provider's credential
+lives on the server and this process is never told it. The child inherits your
+credential environment untouched and
 finds `~/.claude`, `~/.cursor` and `CODEX_HOME`/`~/.codex` exactly as the native
 CLI does. The only additions are the random, round-scoped measurement-broker
 endpoint and token. A key *you* set stays yours; makefaster only refuses to add
@@ -277,16 +282,23 @@ catalog lives in [`packages/cli/lib/models.js`](packages/cli/lib/models.js).
 `--model` also accepts an id that is not in this table and passes it straight
 through, so a model released after this snapshot still works.
 
-### There is no hosted option any more
+### Hosted models (the free option)
 
-makefaster used to offer a model of its own — `stealth/ox-alpha` or
-`z-ai/glm-5.2:free`, served through `makefaster.dev` on the server's OpenRouter
-credential — as a fourth provider, listed first and pre-selected because it was
-the one row that needed nothing installed. Neither model is a free model any
-more, so that row could only fail on its first completion, and it is gone:
-`--cli makefaster` (and the `openrouter` / `hosted` aliases) now stops with a
-line saying so rather than quietly running on a CLI you did not choose. What is
-left is what the picker was always meant to be — the agent CLIs you already have.
+The hosted **Makefaster** provider is a fourth row in the agent picker, listed
+first and pre-selected because it needs nothing installed and nothing signed
+into. Completions run through `makefaster.dev` on the server's OpenRouter
+credential; you never send a key. The only model it serves is Union Alpha,
+which is [free on OpenRouter](https://openrouter.ai/stealth/union-alpha). An id
+that is not on the server's allowlist is refused rather than sent.
+
+`--cli makefaster` (and the `openrouter` / `hosted` aliases) selects this
+provider. `--model stealth/union-alpha` names it without a prompt.
+
+The in-process agent loop that talks to the proxy lives in
+[`packages/cli/lib/agents/openrouter.js`](packages/cli/lib/agents/openrouter.js)
+and [`packages/cli/lib/agents/tools.js`](packages/cli/lib/agents/tools.js). See
+[The hosted model proxy](#the-hosted-model-proxy) for what the server will
+actually forward.
 
 ## Skills
 
@@ -379,7 +391,7 @@ start empty and grow as loops report results:
 | `POST /api/submit-site` | `{ url, favicon?, name?, prUrl?, genericKeepPct?, siteSpecificKeepPct?, tips?, lcpBefore?, lcpRaw, lcpDelta, ttiBefore?, ttiRaw, ttiDelta, mode: cold\|warm }` — upserts the site's row; URL + favicon shown publicly, `name` reduced to the product's own name, `prUrl` (or `pr`) linked from it. `tips` is up to 10 `{ text, about? }` notes to the catalog maintainers (280/80 chars, clamped): stored privately, acknowledged only as a count, never served by any endpoint | `MakefasterAPI.submitSite(payload)` |
 | `POST /api/submit-improvements` | `{ improvements: [{ name, description?, deltaMs?, deltaPct? }] }` — anonymous; names and descriptions are normalized to generic techniques and embedding-matched into categories | `MakefasterAPI.submitImprovements(payload)` |
 | `POST /api/submit-trace` | `{ thinking: [{ text }], results?, runId?, product?, prUrl?, agent?, model?, round?, startedAt?, submittedAt?, resultsSubmitted? }` — one run's chain of thought. Stored privately (see [Chains of thought](#chains-of-thought)); there is no GET counterpart and nothing it holds appears on a board or in `/data/*.json` | — |
-| `POST /api/openrouter/v1/chat/completions` | OpenAI-compatible chat completions proxied to OpenRouter under the server's own credential. Nothing in this repo calls it any more — see [The hosted model proxy](#the-hosted-model-proxy) | — |
+| `POST /api/openrouter/v1/chat/completions` | OpenAI-compatible chat completions proxied to OpenRouter under the server's own credential — what the CLI's `makefaster` provider runs on. See [The hosted model proxy](#the-hosted-model-proxy) | — |
 
 Unknown paths under `/api/` answer `404` rather than the SPA shell, so a route
 nobody wrote cannot become one the static fallback answers.
@@ -466,24 +478,22 @@ loopback and a redirect chain that ends there.
 ### The hosted model proxy
 
 `POST /api/openrouter/v1/chat/completions` is what the CLI's `makefaster`
-provider used to run on: the server held `OPENROUTER_API_KEY`, the CLI held a
+provider runs on: the server held `OPENROUTER_API_KEY`, the CLI held a
 URL, and chat completions were forwarded on its behalf so that a machine with
 none of the three agent CLIs installed could still run the loop. **The
 credential never leaves the box** — it is in no response body, no error string
 and no log line, and responses are scrubbed on the way out as a backstop.
 
-That provider is gone (see
-[There is no hosted option any more](#there-is-no-hosted-option-any-more)), so
-nothing in this repo calls the endpoint. It is still served, and it is still the
-one endpoint here that spends money per request, so it is still deliberately
+It is the one endpoint here that spends money per request (Union Alpha itself is
+free), so it is deliberately
 narrow ([`backend/internal/inference`](backend/internal/inference)) — and a
 deployment with no `OPENROUTER_API_KEY` set simply never turns it on:
 
-- the **model must be on the server's allowlist** — `stealth/ox-alpha` or
-  `z-ai/glm-5.2:free`, and nothing else: an id that is not on the list is
-  answered `400` naming the two that are, rather than substituted, and a request
-  that names no model gets the default. That is what keeps this a two-model
-  proxy instead of an arbitrary-model one;
+- the **model must be on the server's allowlist** — currently
+  `stealth/union-alpha` (free) and nothing else: an id that is not on the list
+  is answered `400` naming what is on offer, rather than substituted, and a
+  request that names no model gets Union Alpha. That is what keeps this a
+  short-list proxy instead of an arbitrary-model one;
 - **`max_tokens` is clamped** (8192) and **streaming is refused**, so one request
   cannot run away;
 - a request with **no messages is rejected** before it costs anything, as is any

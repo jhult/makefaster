@@ -1,6 +1,8 @@
 /**
  * The model catalog makefaster offers after the provider picker: up to five
- * models per provider, ranked by intelligence.
+ * models per provider, ranked by intelligence — plus the hosted provider's own
+ * short list, which is ranked by nothing because the server decides what is on
+ * it (see HOSTED_MODELS).
  *
  * Ranking source of truth is the CursorBench 3.2 snapshot (captured
  * 2026-07-16) that jjcm/bb-plugin-autorouter carries in `benchmarks.ts` as
@@ -28,6 +30,39 @@
  * sorts after every scored model and says so. Codex only has four scored
  * families, so its fifth slot is filled from the live list or left empty.
  */
+
+/**
+ * The hosted provider's models — the ones the makefaster.dev proxy will spend
+ * its OpenRouter credential on. The set is the server's, not this catalog's,
+ * so these ids must match `AllowedModels` in backend/internal/inference. None
+ * is in the CursorBench snapshot, so none carries a score.
+ *
+ * The ids are sent verbatim. The labels are for the picker. A single entry is
+ * selected without a prompt; if the list grows, the first entry is the default.
+ * Union Alpha is the free option.
+ */
+export const HOSTED_MODELS = Object.freeze([
+  Object.freeze({
+    id: "stealth/union-alpha",
+    label: "Union Alpha (free)",
+    detail: "free on OpenRouter via makefaster.dev",
+  }),
+]);
+
+/**
+ * Resolve a `--model` value for the hosted provider. Unlike the agent CLIs,
+ * there is no passthrough: the proxy serves exactly these, so an id it does
+ * not serve is a mistake to report rather than something to forward and have
+ * refused mid-run. Matching is case-insensitive; the id that comes back is the
+ * canonical one to send.
+ *
+ * @returns {{id: string, label: string, detail: string}|null} null when not offered
+ */
+export function resolveHostedModel(modelId) {
+  const wanted = String(modelId ?? "").trim().toLowerCase();
+  if (wanted === "") return null;
+  return HOSTED_MODELS.find((model) => model.id.toLowerCase() === wanted) ?? null;
+}
 
 /** Best CursorBench 3.2 score per model family, and the effort it came from. */
 export const FAMILY_BEST = new Map([

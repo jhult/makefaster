@@ -4,11 +4,13 @@
  * server — it piggybacks on the agent CLIs the user already has and is
  * signed into.
  *
- * Every provider here is a local install, so every provider here is detected.
- * makefaster used to offer a hosted model of its own alongside them; that is
- * gone, and with it the one entry that was always found without looking.
+ * One provider is not detected at all. `makefaster` is hosted: the models run
+ * through makefaster.dev, which holds the OpenRouter credential, so there is no
+ * binary to find and no account to be signed into. It is always offered, and it
+ * is offered first, because it is the only option that works on a machine with
+ * none of the three CLIs installed — and Union Alpha is the free model on it.
  *
- * Per provider, in order:
+ * For the rest, per provider, in order:
  *   1. explicit env override (e.g. CLAUDE_CODE_EXECUTABLE / the documented
  *      BB_CLAUDE_CODE_EXECUTABLE) — if set but not executable, the provider
  *      is reported with an error instead of silently falling through;
@@ -28,10 +30,27 @@ import { accessSync, constants, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { HOSTED_MODELS } from "./models.js";
 
 const VERSION_PROBE_TIMEOUT_MS = 5_000;
 
 export const PROVIDERS = [
+  {
+    key: "makefaster",
+    displayName: "Makefaster",
+    // Nothing to detect: the loop runs in this process against the proxy at
+    // <api base>/api/openrouter/v1, and the credential stays on the server.
+    hosted: true,
+    // The server allowlists these (see lib/models.js). Union Alpha is the free
+    // hosted option, and currently the only one.
+    hostedModels: HOSTED_MODELS,
+    detail: `free · Union Alpha via makefaster.dev`,
+    install: "nothing to install — it runs through makefaster.dev",
+    executables: [],
+    envOverrides: [],
+    wellKnown: () => [],
+    homeHints: () => [],
+  },
   {
     key: "cursor",
     displayName: "Cursor Agent",
@@ -175,7 +194,18 @@ export function detectProviders(options = {}) {
       version: null,
       error: null,
       hint: null,
+      hosted: Boolean(provider.hosted),
+      hostedModels: provider.hostedModels ?? null,
+      detail: provider.detail ?? null,
     };
+
+    // A hosted provider has nothing on this machine to look for, and asking a
+    // remote endpoint whether it is up is the run's business, not detection's.
+    if (provider.hosted) {
+      report.found = true;
+      report.source = "hosted";
+      return report;
+    }
 
     // 1. Explicit env override — a broken override is an error the user must
     //    see, not something to silently skip (bb behaves the same way).
@@ -246,7 +276,12 @@ export function detectProviders(options = {}) {
   });
 }
 
-/** The user-facing "nothing installed" guidance, in bb's missing-CLI tone. */
+/**
+ * The user-facing "nothing installed" guidance, in bb's missing-CLI tone.
+ *
+ * Unreachable while the hosted provider exists, since that one is always
+ * offered — kept because it is the honest message if it ever stops being.
+ */
 export function missingCliGuidance(reports) {
   const lines = [
     "makefaster could not find any supported agent CLI on this machine.",
@@ -256,7 +291,7 @@ export function missingCliGuidance(reports) {
     "`npx makefaster` again:",
     "",
   ];
-  for (const report of reports) {
+  for (const report of reports.filter((r) => !r.hosted)) {
     lines.push(`  ${report.displayName.padEnd(14)}${report.install}`);
   }
   lines.push("");
